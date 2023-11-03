@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     let aiResponse = "";
     try {
       const chatIterator = await getOpenAIClient().listChatCompletions(
-        "gpt-4",
+        process.env.NEXT_PUBLIC_OPENAI_VERSION!,
         sanitizedRequestBody
       );
 
