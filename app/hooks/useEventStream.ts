@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   fetchEventSource,
   EventStreamContentType,
@@ -23,24 +23,26 @@ export const useEventStream = (
     isConnected: false,
     error: null,
   });
-  const abortControllerRef = useRef<AbortController | null>(null);
 
+  let abortController: AbortController;
   const fetchEvent: FetchEvent = useCallback(
     (messages: Message[]) => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      abortControllerRef.current = new AbortController();
+      abortController = new AbortController();
 
       fetchEventSource(url, {
         method: "POST",
-        signal: abortControllerRef.current.signal,
+        signal: abortController.signal,
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(messages),
         async onopen(response) {
+          const contenType = response.headers.get("content-type");
+
+          if (!!contenType && contenType.indexOf("application/json") >= 0) {
+            throw await response.json();
+          }
+
           if (
             response.ok &&
             response.headers
@@ -56,6 +58,9 @@ export const useEventStream = (
           }
         },
         onmessage(event) {
+          if (!event) {
+            return;
+          }
           try {
             const message: Message = JSON.parse(event.data);
             setState((prevState) => ({
@@ -74,10 +79,14 @@ export const useEventStream = (
           }));
         },
         onerror(error) {
-          setState((prevState) => ({
-            ...prevState,
-            error: error instanceof Error ? error : new Error(String(error)),
-          }));
+          if (!!error) {
+            setState((prevState) => ({
+              ...prevState,
+              error: error instanceof Error ? error : new Error(String(error)),
+            }));
+          }
+
+          throw new Error(String(error));
         },
       });
     },
@@ -85,7 +94,6 @@ export const useEventStream = (
   );
 
   useEffect(() => {
-    const abortController = abortControllerRef.current;
     return () => {
       abortController?.abort();
     };

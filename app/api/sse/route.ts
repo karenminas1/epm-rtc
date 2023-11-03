@@ -7,14 +7,6 @@ export async function POST(request: NextRequest) {
   let responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
 
-  writer.closed
-    .then(() => {
-      console.log("connection closed");
-    })
-    .catch((error) => {
-      console.log("connection error", error);
-    });
-
   try {
     let requestBody;
     let sanitizedRequestBody = [];
@@ -49,8 +41,7 @@ export async function POST(request: NextRequest) {
           content: aiResponse,
         })}\n\n`
       );
-
-      writer.write();
+      writer.close();
     } catch (apiError) {
       console.error("Error interacting with OpenAI:", apiError);
       throw new Error("OpenAI service unavailable");
